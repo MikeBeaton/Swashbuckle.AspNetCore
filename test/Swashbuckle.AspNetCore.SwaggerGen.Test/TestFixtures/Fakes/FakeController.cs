@@ -73,6 +73,12 @@ namespace Swashbuckle.AspNetCore.SwaggerGen.Test
         public void AcceptsOptionalParameter(string param = "foobar")
         { }
 
+        public void AcceptsOptionalEnumParameter(AnEnum param = AnEnum.X)
+        { }
+
+        public void AcceptsOptionalAnnotatedEnumParameter(AnAnnotatedEnum param = AnAnnotatedEnum.BarFoo)
+        { }
+
         public void AcceptsStringFromRoute([FromRoute]string param)
         { }
 

@@ -200,12 +200,14 @@ namespace Swashbuckle.AspNetCore.SwaggerGen
             var isRequired = (apiParameter.IsFromPath())
                 || parameterOrPropertyAttributes.Any(attr => RequiredAttributeTypes.Contains(attr.GetType()));
 
+            var enumDefaultValue = parameterInfo?.DefaultValue as Enum;
+
             var schema = (apiParameter.Type != null)
-                ? schemaRegistry.GetOrRegister(apiParameter.Type)
+                ? schemaRegistry.GetOrRegister(apiParameter.Type, enumDefaultValue)
                 : new OpenApiSchema { Type = "string" };
 
             // If it corresponds to an optional action parameter, assign the default value
-            if (parameterInfo?.DefaultValue != null && schema.Reference == null)
+            if (parameterInfo?.DefaultValue != null && schema.Reference == null && enumDefaultValue is null)
                 schema.Default = OpenApiPrimitiveFactory.CreateFrom(parameterInfo.DefaultValue);
 
             var parameter = new OpenApiParameter

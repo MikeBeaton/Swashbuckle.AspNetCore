@@ -6,7 +6,7 @@ namespace Swashbuckle.AspNetCore.SwaggerGen
 {
     public interface ISchemaRegistry
     {
-        OpenApiSchema GetOrRegister(Type type);
+        OpenApiSchema GetOrRegister(Type type, Enum enumDefaultValue = null);
 
         IDictionary<string, OpenApiSchema> Schemas { get; }
     }

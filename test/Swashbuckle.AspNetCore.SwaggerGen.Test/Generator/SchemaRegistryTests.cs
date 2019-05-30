@@ -270,6 +270,18 @@ namespace Swashbuckle.AspNetCore.SwaggerGen.Test
             Assert.Equal("password", schema.Properties["StringWithDataTypePassword"].Format);
             Assert.IsType<OpenApiString>(schema.Properties["StringWithDefaultValue"].Default);
             Assert.Equal("foobar", ((OpenApiString)schema.Properties["StringWithDefaultValue"].Default).Value);
+            Assert.Equal(1, ((OpenApiInteger)schema.Properties["AnnotatedEnumWithDefaultValue"].Default).Value);
+        }
+
+        [Fact]
+        public void GetOrRegister_HonorsDataAttributes_ForAnnotatedEnumAsString()
+        {
+            var subject = Subject(c => c.DescribeAllEnumsAsStrings = true);
+
+            subject.GetOrRegister(typeof(DataAnnotatedType));
+
+            var schema = subject.Schemas["DataAnnotatedType"];
+            Assert.Equal("bar-foo", ((OpenApiString)schema.Properties["AnnotatedEnumWithDefaultValue"].Default).Value);
         }
 
         [Fact]

@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using Newtonsoft.Json.Converters;
+using System.ComponentModel;
 
 namespace Swashbuckle.AspNetCore.SwaggerGen
 {
@@ -32,10 +33,10 @@ namespace Swashbuckle.AspNetCore.SwaggerGen
 
         public IDictionary<string, OpenApiSchema> Schemas { get; private set; }
 
-        public OpenApiSchema GetOrRegister(Type type)
+        public OpenApiSchema GetOrRegister(Type type, Enum enumDefaultValue = null)
         {
             var referencedTypes = new Queue<Type>();
-            var openApiSchema = CreateSchema(type, referencedTypes);
+            var openApiSchema = CreateSchema(type, referencedTypes, enumDefaultValue);
 
             // Ensure all referenced types have a corresponding definition
             while (referencedTypes.Any())
@@ -54,7 +55,7 @@ namespace Swashbuckle.AspNetCore.SwaggerGen
             return openApiSchema;
         }
 
-        private OpenApiSchema CreateSchema(Type type, Queue<Type> referencedTypes)
+        private OpenApiSchema CreateSchema(Type type, Queue<Type> referencedTypes, Enum enumDefaultValue = null)
         {
             // If Option<T> (F#), use the type argument
             if (type.IsFSharpOption())
@@ -79,7 +80,7 @@ namespace Swashbuckle.AspNetCore.SwaggerGen
 
             return createReference
                 ? CreateReferenceSchema(type, referencedTypes)
-                : CreateInlineSchema(type, referencedTypes);
+                : CreateInlineSchema(type, referencedTypes, enumDefaultValue);
         }
 
         private OpenApiSchema CreateReferenceSchema(Type type, Queue<Type> referencedTypes)
@@ -91,7 +92,7 @@ namespace Swashbuckle.AspNetCore.SwaggerGen
             };
         }
 
-        private OpenApiSchema CreateInlineSchema(Type type, Queue<Type> referencedTypes)
+        private OpenApiSchema CreateInlineSchema(Type type, Queue<Type> referencedTypes, Enum enumDefaultValue = null)
         {
             OpenApiSchema OpenApiSchema;
 
@@ -105,7 +106,7 @@ namespace Swashbuckle.AspNetCore.SwaggerGen
             {
                 // TODO: Perhaps a "Chain of Responsibility" would clean this up a little?
                 if (jsonContract is JsonPrimitiveContract)
-                    OpenApiSchema = CreatePrimitiveSchema((JsonPrimitiveContract)jsonContract);
+                    OpenApiSchema = CreatePrimitiveSchema((JsonPrimitiveContract)jsonContract, enumDefaultValue);
                 else if (jsonContract is JsonDictionaryContract)
                     OpenApiSchema = CreateDictionarySchema((JsonDictionaryContract)jsonContract, referencedTypes);
                 else if (jsonContract is JsonArrayContract)
@@ -126,7 +127,7 @@ namespace Swashbuckle.AspNetCore.SwaggerGen
             return OpenApiSchema;
         }
 
-        private OpenApiSchema CreatePrimitiveSchema(JsonPrimitiveContract primitiveContract)
+        private OpenApiSchema CreatePrimitiveSchema(JsonPrimitiveContract primitiveContract, Enum enumDefaultValue = null)
         {
             // If Nullable<T>, use the type argument
             var type = primitiveContract.UnderlyingType.IsNullable()
@@ -134,7 +135,7 @@ namespace Swashbuckle.AspNetCore.SwaggerGen
                 : primitiveContract.UnderlyingType;
 
             if (type.GetTypeInfo().IsEnum)
-                return CreateEnumSchema(primitiveContract, type);
+                return CreateEnumSchema(primitiveContract, type, enumDefaultValue);
 
             if (PrimitiveTypeMap.ContainsKey(type))
                 return PrimitiveTypeMap[type]();
@@ -143,15 +144,20 @@ namespace Swashbuckle.AspNetCore.SwaggerGen
             return new OpenApiSchema { Type = "string" };
         }
 
-        private OpenApiSchema CreateEnumSchema(JsonPrimitiveContract primitiveContract, Type type)
+        private OpenApiSchema CreateEnumSchema(JsonPrimitiveContract primitiveContract, Type type, Enum enumDefaultValue = null)
         {
             var stringEnumConverter = primitiveContract.Converter as StringEnumConverter
                 ?? _jsonSerializerSettings.Converters.OfType<StringEnumConverter>().FirstOrDefault();
+
+            OpenApiSchema schema;
+            object defaultValue = null;
 
             if (_options.DescribeAllEnumsAsStrings || stringEnumConverter != null)
             {
                 var camelCase = _options.DescribeStringEnumsInCamelCase
                     || (stringEnumConverter != null && stringEnumConverter.CamelCaseText);
+
+                var stringDefaultValue = enumDefaultValue?.ToString();
 
                 var enumNames = type.GetFields(BindingFlags.Public | BindingFlags.Static)
                     .Select(f =>
@@ -164,10 +170,17 @@ namespace Swashbuckle.AspNetCore.SwaggerGen
                             name = enumMemberAttribute.Value;
                         }
 
-                        return camelCase ? name.ToCamelCase() : name;
+                        var final = camelCase ? name.ToCamelCase() : name;
+
+                        if (f.Name == stringDefaultValue)
+                        {
+                            defaultValue = final;
+                        }
+
+                        return final;
                     });
 
-                return new OpenApiSchema
+                schema = new OpenApiSchema
                 {
                     Type = "string",
                     Enum = enumNames
@@ -175,15 +188,23 @@ namespace Swashbuckle.AspNetCore.SwaggerGen
                         .ToList<IOpenApiAny>()
                 };
             }
-
-            return new OpenApiSchema
+            else
             {
-                Type = "integer",
-                Format = "int32",
-                Enum = Enum.GetValues(type).Cast<int>()
-                    .Select(value => new OpenApiInteger(value))
-                    .ToList<IOpenApiAny>()
-            };
+                schema = new OpenApiSchema
+                {
+                    Type = "integer",
+                    Format = "int32",
+                    Enum = Enum.GetValues(type).Cast<int>()
+                        .Select(value => new OpenApiInteger(value))
+                        .ToList<IOpenApiAny>()
+                };
+
+                defaultValue = enumDefaultValue == null ? null : Convert.ChangeType(enumDefaultValue, enumDefaultValue.GetTypeCode());
+            }
+
+            schema.Default = defaultValue == null ? null : OpenApiPrimitiveFactory.CreateFrom(defaultValue);
+
+            return schema;
         }
 
         private OpenApiSchema CreateDictionarySchema(JsonDictionaryContract dictionaryContract, Queue<Type> referencedTypes)
@@ -260,7 +281,14 @@ namespace Swashbuckle.AspNetCore.SwaggerGen
 
         private OpenApiSchema CreatePropertyOpenApiSchema(JsonProperty jsonProperty, Queue<Type> referencedTypes)
         {
-            var OpenApiSchema = CreateSchema(jsonProperty.PropertyType, referencedTypes);
+            Enum enumDefaultValue = null;
+
+            if (jsonProperty.TryGetMemberInfo(out MemberInfo memberInfo))
+            {
+                enumDefaultValue = ((DefaultValueAttribute)memberInfo.GetCustomAttribute(typeof(DefaultValueAttribute)))?.Value as Enum;
+            }
+
+            var OpenApiSchema = CreateSchema(jsonProperty.PropertyType, referencedTypes, enumDefaultValue);
 
             if (!jsonProperty.Writable)
                 OpenApiSchema.ReadOnly = true;
@@ -268,8 +296,8 @@ namespace Swashbuckle.AspNetCore.SwaggerGen
             if (!jsonProperty.Readable)
                 OpenApiSchema.WriteOnly = true;
 
-            if (jsonProperty.TryGetMemberInfo(out MemberInfo memberInfo))
-                OpenApiSchema.AssignAttributeMetadata(memberInfo.GetCustomAttributes(true));
+            if (memberInfo != null)
+                OpenApiSchema.AssignAttributeMetadata(memberInfo.GetCustomAttributes(true), enumDefaultValue);
 
             return OpenApiSchema;
         }

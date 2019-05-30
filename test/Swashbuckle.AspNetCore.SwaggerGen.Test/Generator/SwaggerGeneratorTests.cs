@@ -311,6 +311,64 @@ namespace Swashbuckle.AspNetCore.SwaggerGen.Test
         }
 
         [Fact]
+        public void GetSwagger_SetsDefaultValue_ForOptionalEnumActionParameter_AsInt()
+        {
+            var subject = Subject(setupApis: apis => apis
+                .Add("GET", "collection/{param}", nameof(FakeController.AcceptsOptionalEnumParameter)));
+
+            var swagger = subject.GetSwagger("v1");
+
+            var parameter = swagger.Paths["/collection/{param}"].Operations[OperationType.Get].Parameters.First();
+            Assert.IsType<OpenApiInteger>(parameter.Schema.Default);
+            Assert.Equal(8, ((OpenApiInteger)parameter.Schema.Default).Value);
+        }
+
+        [Fact]
+        public void GetSwagger_SetsDefaultValue_ForOptionalEnumActionParameter_AsString()
+        {
+            var subject = Subject(setupApis: apis => apis
+                .Add("GET", "collection/{param}", nameof(FakeController.AcceptsOptionalEnumParameter)),
+                registrySetupAction: c => c.DescribeAllEnumsAsStrings = true);
+
+            var swagger = subject.GetSwagger("v1");
+
+            var parameter = swagger.Paths["/collection/{param}"].Operations[OperationType.Get].Parameters.First();
+            Assert.IsType<OpenApiString>(parameter.Schema.Default);
+            Assert.Equal("X", ((OpenApiString)parameter.Schema.Default).Value);
+        }
+
+        [Fact]
+        public void GetSwagger_SetsDefaultValue_ForOptionalAnnotatedEnumActionParameter_AsString()
+        {
+            var subject = Subject(setupApis: apis => apis
+                .Add("GET", "collection/{param}", nameof(FakeController.AcceptsOptionalAnnotatedEnumParameter)),
+                registrySetupAction: c => c.DescribeAllEnumsAsStrings = true);
+
+            var swagger = subject.GetSwagger("v1");
+
+            var parameter = swagger.Paths["/collection/{param}"].Operations[OperationType.Get].Parameters.First();
+            Assert.IsType<OpenApiString>(parameter.Schema.Default);
+            Assert.Equal("bar-foo", ((OpenApiString)parameter.Schema.Default).Value);
+        }
+
+        [Fact]
+        public void GetSwagger_SetsDefaultValue_ForOptionalEnumActionParameter_AsCamelCaseString()
+        {
+            var subject = Subject(setupApis: apis => apis
+                .Add("GET", "collection/{param}", nameof(FakeController.AcceptsOptionalEnumParameter)),
+                registrySetupAction: c => {
+                    c.DescribeAllEnumsAsStrings = true;
+                    c.DescribeStringEnumsInCamelCase = true;
+                });
+
+            var swagger = subject.GetSwagger("v1");
+
+            var parameter = swagger.Paths["/collection/{param}"].Operations[OperationType.Get].Parameters.First();
+            Assert.IsType<OpenApiString>(parameter.Schema.Default);
+            Assert.Equal("x", ((OpenApiString)parameter.Schema.Default).Value);
+        }
+
+        [Fact]
         public void GetSwagger_IgnoresParameters_IfApiParameterIsCancellationToken()
         {
             var subject = Subject(setupApis: apis => apis
@@ -530,7 +588,8 @@ namespace Swashbuckle.AspNetCore.SwaggerGen.Test
 
         private SwaggerGenerator Subject(
             Action<FakeApiDescriptionGroupCollectionProvider> setupApis = null,
-            Action<SwaggerGeneratorOptions> setupAction = null)
+            Action<SwaggerGeneratorOptions> setupAction = null,
+            Action<SchemaRegistryOptions> registrySetupAction = null)
         {
             var apiDescriptionsProvider = new FakeApiDescriptionGroupCollectionProvider();
             setupApis?.Invoke(apiDescriptionsProvider);
@@ -540,9 +599,12 @@ namespace Swashbuckle.AspNetCore.SwaggerGen.Test
 
             setupAction?.Invoke(options);
 
+            var registryOptions = new SchemaRegistryOptions();
+            if (registrySetupAction != null) registrySetupAction(registryOptions);
+
             return new SwaggerGenerator(
                 apiDescriptionsProvider,
-                new SchemaRegistryFactory(new JsonSerializerSettings(), new SchemaRegistryOptions()),
+                new SchemaRegistryFactory(new JsonSerializerSettings(), registryOptions),
                 options
             );
         }

@@ -36,5 +36,8 @@ namespace Swashbuckle.AspNetCore.SwaggerGen.Test
 
         [DefaultValue("foobar")]
         public string StringWithDefaultValue { get; set; }
+
+        [DefaultValue(AnAnnotatedEnum.BarFoo)]
+        public AnAnnotatedEnum AnnotatedEnumWithDefaultValue { get; set; }
     }
 }
