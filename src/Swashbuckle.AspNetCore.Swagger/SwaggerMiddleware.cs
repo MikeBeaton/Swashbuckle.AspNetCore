@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Routing.Template;
 using Microsoft.AspNetCore.Http;
 using Microsoft.OpenApi.Models;
 using Microsoft.OpenApi.Writers;
+using System.Linq;
+using System.Collections.Generic;
 
 namespace Swashbuckle.AspNetCore.Swagger
 {
@@ -51,6 +53,16 @@ namespace Swashbuckle.AspNetCore.Swagger
                 foreach (var filter in _options.PreSerializeFilters)
                 {
                     filter(swagger, httpContext.Request);
+                }
+
+                if (swagger.Components != null && swagger.Components.Schemas != null)
+                {
+                    var replacement = new Dictionary<string, OpenApiSchema>();
+                    foreach (var kv in swagger.Components.Schemas.OrderBy(p => p.Key))
+                    {
+                        replacement.Add(kv.Key, kv.Value);
+                    }
+                    swagger.Components.Schemas = replacement;
                 }
 
                 await RespondWithSwaggerJson(httpContext.Response, swagger);
