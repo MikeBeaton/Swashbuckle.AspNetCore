@@ -14,7 +14,7 @@ namespace Swashbuckle.AspNetCore.SwaggerGen
             if (schema.Type == "boolean" && TryCast(value, out bool boolValue))
                 openApiAny = new OpenApiBoolean(boolValue);
             
-            else if (schema.Type == "integer" && schema.Format == "int32" && TryCast(value, out byte byteValue))
+            else if (schema.Type == "integer" && schema.Format == "byte" && TryCast(value, out byte byteValue))
 				openApiAny = new OpenApiInteger(byteValue);
 
             else if (schema.Type == "integer" && schema.Format == "int16" && TryCast(value, out short shortValue))

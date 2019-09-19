@@ -43,10 +43,10 @@ namespace Swashbuckle.AspNetCore.SwaggerGen.Test
 
         [Theory]
         [InlineData(typeof(bool), "boolean", null)]
-        [InlineData(typeof(byte), "integer", "int32")]
-        [InlineData(typeof(sbyte), "integer", "int32")]
-        [InlineData(typeof(short), "integer", "int32")]
-        [InlineData(typeof(ushort), "integer", "int32")]
+        [InlineData(typeof(byte), "integer", "byte")]
+        [InlineData(typeof(sbyte), "integer", "byte")]
+        [InlineData(typeof(short), "integer", "int16")]
+        [InlineData(typeof(ushort), "integer", "int16")]
         [InlineData(typeof(int), "integer", "int32")]
         [InlineData(typeof(uint), "integer", "int32")]
         [InlineData(typeof(long), "integer", "int64")]
@@ -90,10 +90,14 @@ namespace Swashbuckle.AspNetCore.SwaggerGen.Test
         }
 
         [Theory]
+        [InlineData(typeof(ByteEnum), "ByteEnum", "integer", "byte", 3)]
+        [InlineData(typeof(ByteEnum?), "ByteEnum", "integer", "byte", 3)]
+        [InlineData(typeof(ShortEnum), "ShortEnum", "integer", "int16", 3)]
+        [InlineData(typeof(ShortEnum?), "ShortEnum", "integer", "int16", 3)]
         [InlineData(typeof(IntEnum), "IntEnum", "integer", "int32", 3)]
+        [InlineData(typeof(IntEnum?), "IntEnum", "integer", "int32", 3)]
         [InlineData(typeof(LongEnum), "LongEnum", "integer", "int64", 3)]
-        [InlineData(typeof(IntEnum?), "IntEnum", "integer", "int32", 3)]
-        [InlineData(typeof(IntEnum?), "IntEnum", "integer", "int32", 3)]
+        [InlineData(typeof(LongEnum?), "LongEnum", "integer", "int64", 3)]
         public void GenerateSchema_GeneratesEnumSchema_IfEnumType(
             Type type,
             string expectedSchemaId,

@@ -91,10 +91,10 @@ namespace Swashbuckle.AspNetCore.SwaggerGen
         private static readonly Dictionary<Type, Func<OpenApiSchema>> FactoryMethodMap = new Dictionary<Type, Func<OpenApiSchema>>
         {
             { typeof(bool), () => new OpenApiSchema { Type = "boolean" } },
-            { typeof(byte), () => new OpenApiSchema { Type = "integer", Format = "int32" } },
-            { typeof(sbyte), () => new OpenApiSchema { Type = "integer", Format = "int32" } },
-            { typeof(short), () => new OpenApiSchema { Type = "integer", Format = "int32" } },
-            { typeof(ushort), () => new OpenApiSchema { Type = "integer", Format = "int32" } },
+            { typeof(byte), () => new OpenApiSchema { Type = "integer", Format = "byte" } },
+            { typeof(sbyte), () => new OpenApiSchema { Type = "integer", Format = "byte" } },
+            { typeof(short), () => new OpenApiSchema { Type = "integer", Format = "int16" } },
+            { typeof(ushort), () => new OpenApiSchema { Type = "integer", Format = "int16" } },
             { typeof(int), () => new OpenApiSchema { Type = "integer", Format = "int32" } },
             { typeof(uint), () => new OpenApiSchema { Type = "integer", Format = "int32" } },
             { typeof(long), () => new OpenApiSchema { Type = "integer", Format = "int64" } },
